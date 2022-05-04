@@ -1,3 +1,4 @@
+use dialoguer::Confirm;
 use dialoguer::Input;
 use dialoguer::Password;
 
@@ -15,4 +16,12 @@ pub fn get_credentials() -> (String, String) {
         .unwrap_or_default();
 
     (username, password)
+}
+
+pub fn retry_credentials() -> bool {
+    Confirm::new()
+        .with_prompt("Unknown username/password. Retry")
+        .default(true)
+        .interact()
+        .unwrap_or_default()
 }

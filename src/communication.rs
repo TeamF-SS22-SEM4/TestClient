@@ -1,6 +1,6 @@
 use reqwest::blocking::Client;
 use serde_json::{self, Value};
-use std::{collections::HashMap, vec};
+use std::{collections::HashMap, result::Result, vec};
 
 #[derive(Debug)]
 pub struct LoginResult {
@@ -9,7 +9,14 @@ pub struct LoginResult {
     pub roles: Vec<String>,
 }
 
-pub fn login(url: &str, username: &str, password: &str) -> Option<LoginResult> {
+#[derive(Debug)]
+pub enum Reason {
+    UNAUTHORIZED,
+    BadRequest,
+    OTHER,
+}
+
+pub fn login(url: &str, username: &str, password: &str) -> Result<LoginResult, Reason> {
     let endpoint = "/login";
 
     let client = Client::new();
@@ -25,18 +32,22 @@ pub fn login(url: &str, username: &str, password: &str) -> Option<LoginResult> {
 
     match response.status() {
         reqwest::StatusCode::OK => {
-            let v: Value =
-                serde_json::from_str(&response.text().expect("Unable to read response contents"))
-                    .expect("Unknown response structure");
+            let result =
+                serde_json::from_str(&response.text().expect("Unable to read response contents"));
 
+            if let Err(_) = result {
+                return Err(Reason::OTHER);
+            }
+
+            let v: Value = result.unwrap();
             let id_len = v["sessionId"].to_string().len();
-            Some(LoginResult {
+            Ok(LoginResult {
                 session_id: v["sessionId"].to_string()[1..id_len - 1].to_string(),
                 username: v["username"].to_string(),
                 roles: vec![], //TODO if ever needed
             })
         }
-        reqwest::StatusCode::UNAUTHORIZED => None,
+        reqwest::StatusCode::UNAUTHORIZED => Err(Reason::UNAUTHORIZED),
         _ => {
             panic!("Something went wrong");
         }
