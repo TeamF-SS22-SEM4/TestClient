@@ -1,6 +1,5 @@
 use communication::LoginResult;
 use communication::Reason;
-use std::io;
 
 mod cli_interaction;
 mod communication;
@@ -35,9 +34,6 @@ impl Client {
                         Reason::InvalidCredentials => {
                             logging_in = cli_interaction::retry_credentials();
                         }
-                        Reason::BadRequest => {
-                            panic!("Internal error! Bad Request while logging in");
-                        }
                         Reason::Other => {
                             panic!("Unknown error while logging in. {:?}", reason);
                         }
@@ -53,7 +49,7 @@ impl Client {
         self.login();
 
         if self.session_info.is_some() {
-            println!("Ready to receive commands type. Type \"help\" ");
+            println!("Ready to receive commands type. Type \"help\" for a list of commands ");
             self.receive_commands()
         } else {
             self.shutdown()
@@ -70,7 +66,6 @@ impl Client {
 
     fn receive_commands(&mut self) -> () {
         let mut receiving = true;
-        let mut input = String::new();
 
         while receiving {
             let args = cli_interaction::get_command();
@@ -84,20 +79,23 @@ impl Client {
             }
             //TODO help-command
             if command_name.eq_ignore_ascii_case("help") {
-                if args.len() == 1 {
-                    //list all commands if no arguments are specified
-                    for c in &self.commands {
-                        println!("Command: ");
-                        c.print_help();
-                        println!("-----------------")
-                    }
+                println!("Command: ");
+                println!("help   - displays this list\n-----------------");
+
+                println!("Command: ");
+                println!("quit   - exits the program\n-----------------");
+
+                for c in &self.commands {
+                    println!("Command: ");
+                    c.print_help();
+                    println!("-----------------")
                 }
                 handled_input = true;
             }
 
             for c in &self.commands {
                 if command_name.eq_ignore_ascii_case(&c.name) {
-                    (c.action)(&args[1..]);
+                    (c.action)(&self, &args[1..]);
                     handled_input = true;
                 }
             }
@@ -111,7 +109,7 @@ impl Client {
 
 struct Command {
     name: String,
-    action: fn(args: &[String]) -> (),
+    action: fn(calling_client: &Client, args: &[String]) -> (),
     arg_descriptions: Vec<String>,
     short_description: String,
 }
@@ -128,21 +126,32 @@ fn main() {
     let mut client = Client::new("http://localhost:8080/api/v1");
     client.add_command(Command {
         name: "search".to_string(),
-        action: |args| {
+        action: |calling_client: &Client, args| {
             let mut query = String::new();
             for a in args {
                 query.push_str(&a);
                 query.push(' ');
             }
-            let products = communication::search(&query);
-            for p in products.iter() {
-                println!("{}", p);
+            let products = communication::search(&calling_client.host_url, &calling_client.session_info.as_ref().unwrap_or(&LoginResult::new()).session_id, &query);
+
+            if products.len() == 0 {
+                println!("Seems like no products matched your search...");
+            } else {
+                let selection = cli_interaction::select_product(&products);
+
+                if let Ok(Some(index)) = selection {
+                    let product_id = &products.get(index).expect("Vector's be drinking and loosing items unexpectedly").id;
+                    
+                    if let Some(product) = communication::get_product(&calling_client.host_url, &calling_client.session_info.as_ref().unwrap_or(&LoginResult::new()).session_id, product_id) {
+                        println!("{}", product);
+                    }
+                }
             }
         },
         arg_descriptions: vec![
             "query   - search this text in productcarriers. Do not wrap the query with \" "
                 .to_string(),
-            "Returns a list of matching Productcarriers".to_string(),
+            "Returns a list of matching Productcarriers, out of the result list one product can be selected to show the details of it.".to_string(),
         ],
         short_description: "search <a query string>".to_string(),
     });

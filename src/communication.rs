@@ -1,4 +1,5 @@
 use reqwest::blocking::Client;
+use serde::{Deserialize, Serialize};
 use serde_json::{self, Value};
 use std::{collections::HashMap, result::Result, vec};
 
@@ -9,11 +10,25 @@ pub struct LoginResult {
     pub roles: Vec<String>,
 }
 
+impl LoginResult {
+    pub fn new() -> LoginResult {
+        LoginResult {
+            session_id: String::new(),
+            username: String::new(),
+            roles: vec![],
+        }
+    }
+}
+#[derive(Deserialize, Debug, Serialize)]
 pub struct ProductOverview {
+    #[serde(rename = "productId")]
     pub id: String,
     pub name: String,
+    #[serde(rename = "artistName")]
     pub artist_name: String,
+    #[serde(rename = "releaseYear")]
     pub release_year: String,
+    #[serde(rename = "smallestPrice")]
     pub smallest_price: f32,
 }
 
@@ -30,19 +45,128 @@ impl std::fmt::Display for ProductOverview {
 #[derive(Debug)]
 pub enum Reason {
     InvalidCredentials,
-    BadRequest,
     Other,
 }
 
-pub fn search(query: &str) -> Vec<ProductOverview> {
-    //TODO implement
-    vec![ProductOverview {
-        id: "1".to_string(),
-        name: "A day at the races".to_string(),
-        artist_name: "Queen".to_string(),
-        release_year: "1969".to_string(),
-        smallest_price: 20.0,
-    }]
+#[derive(Serialize, Deserialize, Debug)]
+pub struct Product {
+    #[serde(rename = "productId")]
+    pub id: String,
+    pub name: String,
+    #[serde(rename = "artistName")]
+    pub artist_name: String,
+    #[serde(rename = "releaseYear")]
+    pub release_year: String,
+    #[serde(rename = "labelName")]
+    pub label_name: String,
+    #[serde(rename = "duration")]
+    pub duration: String,
+    #[serde(rename = "genre")]
+    pub genre: String,
+    pub songs: Vec<Song>,
+    #[serde(rename = "soundCarriers")]
+    pub carriers: Vec<Carrier>,
+}
+
+impl std::fmt::Display for Product {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let mut songs_string = String::new();
+        for s in &self.songs {
+            songs_string.push_str(format!("{}\n", s).as_str())
+        }
+
+        let mut carriers_string = String::new();
+        for c in &self.carriers {
+            carriers_string.push_str(format!("{}\n", c).as_str());
+        }
+
+        write!(
+            f,
+            "\nProduct:\n\
+            Name: {} \n\
+            From: {} \n\
+            Year: {} \n\
+            Label: {} \n\
+            Duration: {} \n\
+            Genre: {}
+            \n\
+            Songs: \n\
+            {}
+            \n\
+            SoundCarriers:\n\
+            {}",
+            self.name,
+            self.artist_name,
+            self.release_year,
+            self.label_name,
+            self.duration,
+            self.genre,
+            songs_string,
+            carriers_string
+        )
+    }
+}
+
+#[derive(Serialize, Deserialize, Debug)]
+pub struct Song {
+    pub title: String,
+    pub duration: String,
+}
+
+impl std::fmt::Display for Song {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{} {}", self.title, self.duration)
+    }
+}
+
+#[derive(Serialize, Deserialize, Debug)]
+pub struct Carrier {
+    #[serde(rename = "soundCarrierName")]
+    pub name: String,
+    #[serde(rename = "amountAvailable")]
+    pub amount: i32,
+    #[serde(rename = "pricePerCarrier")]
+    pub price: f32,
+}
+
+impl std::fmt::Display for Carrier {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(
+            f,
+            "{}, {} available at {}€",
+            self.name, self.amount, self.price
+        )
+    }
+}
+
+pub fn get_product(url: &str, session_id: &str, id: &str) -> Option<Product> {
+    let endpoint = format!("/products/{}", id);
+    let response = Client::new()
+        .get(format!("{}{}", url, endpoint))
+        .header("session-id", session_id)
+        .send()
+        .expect("Error while sending request")
+        .text()
+        .expect("Unable to read response");
+
+    match serde_json::from_str(&response) {
+        Ok(product) => Some(product),
+        Err(_) => None,
+    }
+}
+
+pub fn search(url: &str, session_id: &str, query: &str) -> Vec<ProductOverview> {
+    let endpoint = format!("/products?search={}", query);
+    let client = Client::new();
+    let response = client
+        .get(format!("{}{}", url, endpoint))
+        .header("session-id", session_id)
+        .send()
+        .expect("Unable to send request")
+        .text()
+        .expect("Unable to read response");
+
+    serde_json::from_str(&response).unwrap()
 }
 
 pub fn login(url: &str, username: &str, password: &str) -> Result<LoginResult, Reason> {

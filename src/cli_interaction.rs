@@ -1,6 +1,11 @@
+use std::io::Error;
+
 use dialoguer::Confirm;
 use dialoguer::Input;
 use dialoguer::Password;
+use dialoguer::Select;
+
+use crate::communication::ProductOverview;
 
 pub fn get_command() -> Vec<String> {
     let input: String = Input::new()
@@ -15,6 +20,14 @@ pub fn get_command() -> Vec<String> {
         words.push(w.to_string());
     }
     words
+}
+
+pub fn select_product(products: &Vec<ProductOverview>) -> Result<Option<usize>, Error> {
+    Select::new()
+        .with_prompt(format!("Found {} products", products.len()))
+        .default(0)
+        .items(products)
+        .interact_opt()
 }
 
 pub fn get_credentials() -> (String, String) {
