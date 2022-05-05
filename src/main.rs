@@ -1,8 +1,8 @@
-use communication::LoginResult;
-use communication::Reason;
+use model::{Reason, LoginResult};
 
 mod cli_interaction;
 mod communication;
+mod model;
 
 struct Client {
     host_url: String,

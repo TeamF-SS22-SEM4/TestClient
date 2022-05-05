@@ -5,7 +5,7 @@ use dialoguer::Input;
 use dialoguer::Password;
 use dialoguer::Select;
 
-use crate::communication::ProductOverview;
+use crate::model::ProductOverview;
 
 pub fn get_command() -> Vec<String> {
     let input: String = Input::new()
