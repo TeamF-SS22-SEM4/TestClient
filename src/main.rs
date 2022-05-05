@@ -1,3 +1,5 @@
+use std::env;
+
 use model::{Reason, LoginResult};
 
 mod cli_interaction;
@@ -123,7 +125,13 @@ impl Command {
 }
 
 fn main() {
-    let mut client = Client::new("http://localhost:8080/api/v1");
+    let args: Vec<String> = env::args().collect();
+    let mut url = "http://localhost:8080/api/v1";
+    if args.contains(&"remote".to_string()) {
+        url = "http://10.0.40.170:8080/api/v1";
+    }
+
+    let mut client = Client::new(url);
     client.add_command(Command {
         name: "search".to_string(),
         action: |calling_client: &Client, args| {
