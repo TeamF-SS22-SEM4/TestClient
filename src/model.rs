@@ -1,6 +1,23 @@
 use serde::{Deserialize, Serialize};
 use std::vec;
 
+use crate::client::Client;
+
+pub struct Command {
+    pub name: String,
+    pub action: fn(calling_client: &Client, args: &[String]) -> (),
+    pub arg_descriptions: Vec<String>,
+    pub short_description: String,
+}
+impl Command {
+    pub fn print_help(&self) {
+        println!("{}", self.short_description);
+        for arg in &self.arg_descriptions {
+            println!("{}", arg);
+        }
+    }
+}
+
 #[derive(Debug)]
 pub struct LoginResult {
     pub session_id: String,
