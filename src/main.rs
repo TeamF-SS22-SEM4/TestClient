@@ -159,7 +159,9 @@ fn main() {
         arg_descriptions: vec![
             "query   - search this text in productcarriers. Do not wrap the query with \" "
                 .to_string(),
-            "Returns a list of matching Productcarriers, out of the result list one product can be selected to show the details of it.".to_string(),
+            "Returns a list of matching Productcarriers, out of the result list one product can be selected to show the details of it.\n\
+            Navigate the result list with arrow keys and select one result with space/enter
+            ".to_string(),
         ],
         short_description: "search <a query string>".to_string(),
     });
